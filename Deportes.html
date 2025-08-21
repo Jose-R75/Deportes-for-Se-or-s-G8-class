@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deportes + Adjetivos — 8 ítems únicos en A</title>
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --ink:#e5e7eb; --muted:#94a3b8; --ok:#22c55e; --ko:#ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Inter,Arial;background:#0b1220;color:var(--ink)}
+    .wrap{max-width:980px;margin:0 auto;padding:16px}
+    h1{margin:0 0 10px} h2{margin:8px 0 6px}
+    .section{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;margin:12px 0}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media (min-width:760px){ .grid{grid-template-columns:1fr 1fr} }
+    .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px}
+    .row{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
+    .emoji{font-size:20px} .lbl{font-weight:700}
+    select,input{width:100%;background:#0b1220;color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+    .feedback{font-size:13px;margin-top:6px;min-height:18px}
+    .ok{color:var(--ok)} .ko{color:var(--ko)}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    button{background:#0ea5e9;color:white;border:none;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+    .score{margin-left:auto;font-weight:800}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Deportes + adjetivos — 8 ítems por sección</h1>
+
+    <!-- Parte A -->
+    <section class="section" id="A">
+      <h2>Parte A. “El/La + deporte + es + adjetivo”</h2>
+      <p class="hint">Cada ítem usa un adjetivo distinto. Elige la forma correcta (ms, fs, mp, fp) y escribe la oración completa.</p>
+      <div class="grid" id="gridA"></div>
+    </section>
+
+    <!-- Parte B -->
+    <section class="section" id="B">
+      <h2>Parte B. Traducción: usa tus expresiones</h2>
+      <p class="hint">Todas las opciones son gramaticalmente correctas. Solo una coincide con la frase española; las demás tratan de otros deportes/adjetivos.</p>
+      <div class="grid" id="gridB"></div>
+    </section>
+
+    <div class="controls">
+      <button id="revisar">Revisar</button>
+      <button id="mostrar">Mostrar soluciones</button>
+      <button id="reiniciar">Reiniciar</button>
+      <div class="score" id="score">Puntuación: 0 / 0</div>
+    </div>
+  </div>
+
+  <script>
+    const norm = s => s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/\s+/g," ").trim();
+
+    // Banco de adjetivos con 4 formas
+    const ADJ_FORMS = {
+      divertido:   { ms:"divertido", fs:"divertida", mp:"divertidos", fp:"divertidas" },
+      aburrido:    { ms:"aburrido", fs:"aburrida", mp:"aburridos", fp:"aburridas" },
+      interesante: { ms:"interesante", fs:"interesante", mp:"interesantes", fp:"interesantes" },
+      relajante:   { ms:"relajante", fs:"relajante", mp:"relajantes", fp:"relajantes" },
+      estimulante: { ms:"estimulante", fs:"estimulante", mp:"estimulantes", fp:"estimulantes" },
+      fascinante:  { ms:"fascinante", fs:"fascinante", mp:"fascinantes", fp:"fascinantes" },
+      facil:       { ms:"fácil", fs:"fácil", mp:"fáciles", fp:"fáciles" },
+      dificil:     { ms:"difícil", fs:"difícil", mp:"difíciles", fp:"difíciles" },
+      arriesgado:  { ms:"arriesgado", fs:"arriesgada", mp:"arriesgados", fp:"arriesgadas" },
+      peligroso:   { ms:"peligroso", fs:"peligrosa", mp:"peligrosos", fp:"peligrosas" }
+    };
+
+    // 8 ítems Parte A con adjetivos únicos (uno por ítem)
+    const A_ROWS = [
+      { id:"a1", emoji:"⚾", art:"El",  sport:"béisbol",    label:"1) el béisbol",    adjKey:"divertido"   },
+      { id:"a2", emoji:"🏊", art:"La",  sport:"natación",   label:"2) la natación",   adjKey:"aburrido"    },
+      { id:"a3", emoji:"🚴", art:"El",  sport:"ciclismo",   label:"3) el ciclismo",   adjKey:"interesante" },
+      { id:"a4", emoji:"🧗", art:"La",  sport:"escalada",   label:"4) la escalada",   adjKey:"relajante"   },
+      { id:"a5", emoji:"⚽", art:"El",  sport:"fútbol",     label:"5) el fútbol",     adjKey:"estimulante" },
+      { id:"a6", emoji:"🎾", art:"El",  sport:"tenis",      label:"6) el tenis",      adjKey:"fascinante"  },
+      { id:"a7", emoji:"🏀", art:"El",  sport:"baloncesto", label:"7) el baloncesto", adjKey:"facil"       },
+      { id:"a8", emoji:"🏐", art:"El",  sport:"voleibol",   label:"8) el voleibol",   adjKey:"dificil"     }
+    ];
+
+    function expectedAgreement(art){ const g=(art==="El"||art==="Los")?"m":"f"; const n=(art==="El"||art==="La")?"s":"p"; return g+n; }
+
+    function renderA(){
+      const grid = document.getElementById('gridA'); grid.innerHTML="";
+      A_ROWS.forEach(r=>{
+        const forms = ADJ_FORMS[r.adjKey];
+        const div = document.createElement('div'); div.className="card";
+        div.innerHTML = `
+          <div class="row"><div class="emoji">${r.emoji}</div><div class="lbl">${r.label}</div></div>
+          <div style="margin-top:6px">${r.art} ${r.sport} es</div>
+          <select id="${r.id}-sel">
+            <option value="">-- selecciona adjetivo --</option>
+            <option value="${forms.ms}">${forms.ms}</option>
+            <option value="${forms.fs}">${forms.fs}</option>
+            <option value="${forms.mp}">${forms.mp}</option>
+            <option value="${forms.fp}">${forms.fp}</option>
+          </select>
+          <div class="hint">Oración completa</div>
+          <input id="${r.id}-txt" placeholder="${r.art} ${r.sport} es …">
+          <div class="feedback" id="${r.id}-fb"></div>
+        `;
+        grid.appendChild(div);
+        const sel = div.querySelector(`#${r.id}-sel`);
+        const txt = div.querySelector(`#${r.id}-txt`);
+        const fb  = div.querySelector(`#${r.id}-fb`);
+
+        const validate = ()=>{
+          const choice = sel.value;
+          if(!choice){ fb.textContent="Selecciona una de las 4 formas (ms/fs/mp/fp)."; fb.className="feedback ko"; return; }
+          const need = expectedAgreement(r.art);
+          const map = { ms:forms.ms, fs:forms.fs, mp:forms.mp, fp:forms.fp };
+          // Determine which form was chosen
+          let chosenTag = null;
+          for(const tag of ["ms","fs","mp","fp"]){ if(choice===map[tag]) { chosenTag = tag; break; } }
+          if(!chosenTag || (chosenTag!==need)){
+            fb.textContent = `La forma “${choice}” no concuerda con ${r.art.toLowerCase()} (${need}).`;
+            fb.className = "feedback ko";
+            return;
+          }
+          const s = norm(txt.value.replace(/[.!?]+$/,""));
+          const target = norm(`${r.art} ${r.sport} es ${choice}`);
+          if(s!==target){
+            fb.textContent = `Revisa: “${r.art} ${r.sport} es ${choice}”.`;
+            fb.className = "feedback ko";
+          } else {
+            fb.textContent = "¡Correcto!";
+            fb.className = "feedback ok";
+          }
+        };
+        sel.addEventListener('change', ()=>{ validate(); updateScore(); });
+        txt.addEventListener('input', ()=>{ validate(); updateScore(); });
+      });
+    }
+
+    // Parte B — tus expresiones y opciones "no parecidas"
+    const B_ITEMS = [
+      {
+        id:"b1", emoji:"🏊", es:"Nadar es relajante.",
+        options:[
+          "Swimming is relaxing.",              /* correcta */
+          "Boxing is dangerous.",
+          "Playing soccer is fun.",
+          "Volleyball is fascinating."
+        ],
+        correct:0
+      },
+      {
+        id:"b2", emoji:"🚴", es:"Montar en bicicleta es estimulante.",
+        options:[
+          "Cycling is stimulating.",            /* correcta */
+          "Boxing is interesting.",
+          "Skiing is dangerous.",
+          "Watching volleyball is boring."
+        ],
+        correct:0
+      },
+      {
+        id:"b3", emoji:"⚽", es:"Jugar al fútbol es divertido.",
+        options:[
+          "Playing soccer is fun.",             /* correcta (US) */
+          "Swimming is relaxing.",
+          "Boxing is intense.",
+          "Skiing is difficult."
+        ],
+        correct:0
+      },
+      {
+        id:"b4", emoji:"🎾", es:"Entrenar al tenis es difícil.",
+        options:[
+          "Training for tennis is difficult.",  /* correcta */
+          "Cycling is stimulating.",
+          "Rock climbing is risky.",
+          "Watching volleyball is boring."
+        ],
+        correct:0
+      },
+      {
+        id:"b5", emoji:"⛷️", es:"Esquiar es peligroso.",
+        options:[
+          "Skiing is dangerous.",               /* correcta */
+          "Boxing is interesting.",
+          "Playing soccer is enjoyable.",
+          "Swimming is relaxing."
+        ],
+        correct:0
+      },
+      {
+        id:"b6", emoji:"🥊", es:"Boxear es interesante.",
+        options:[
+          "Boxing is interesting.",             /* correcta */
+          "Cycling is stimulating.",
+          "Skiing is dangerous.",
+          "Watching volleyball is boring."
+        ],
+        correct:0
+      },
+      {
+        id:"b7", emoji:"🏐", es:"Mirar voleibol es aburrido.",
+        options:[
+          "Watching volleyball is boring.",     /* correcta */
+          "Cycling is stimulating.",
+          "Boxing is intense.",
+          "Swimming is relaxing."
+        ],
+        correct:0
+      },
+      {
+        id:"b8", emoji:"🧗", es:"Escalar es arriesgado.",
+        options:[
+          "Rock climbing is risky.",            /* correcta */
+          "Playing soccer is fun.",
+          "Swimming is relaxing.",
+          "Boxing is dangerous."
+        ],
+        correct:0
+      }
+    ];
+
+    function renderB(){
+      const grid = document.getElementById('gridB'); grid.innerHTML="";
+      B_ITEMS.forEach(item=>{
+        const div = document.createElement('div'); div.className="card";
+        div.innerHTML = `
+          <div class="row"><div class="emoji">${item.emoji}</div><div class="lbl">${item.es}</div></div>
+          <select id="${item.id}-sel">
+            <option value="">-- choose the correct equivalent --</option>
+            ${item.options.map((op,i)=>`<option value="${i}">${op}</option>`).join("")}
+          </select>
+          <div class="feedback" id="${item.id}-fb"></div>
+        `;
+        grid.appendChild(div);
+        const sel = div.querySelector(`#${item.id}-sel`);
+        const fb  = div.querySelector(`#${item.id}-fb`);
+        sel.addEventListener('change', ()=>{
+          if(sel.value===""){ fb.textContent="Choose an option."; fb.className="feedback ko"; }
+          else if(Number(sel.value)===item.correct){ fb.textContent="Correct."; fb.className="feedback ok"; }
+          else{ fb.textContent="Grammatically correct, but it does not match the Spanish sentence."; fb.className="feedback ko"; }
+          updateScore();
+        });
+      });
+    }
+
+    // Puntuación
+    function getAScore(){
+      let total=A_ROWS.length, correct=0;
+      A_ROWS.forEach(r=>{
+        const sel = document.getElementById(`${r.id}-sel`);
+        const txt = document.getElementById(`${r.id}-txt`);
+        if(!sel||!txt) return;
+        const choice = sel.value;
+        const need = expectedAgreement(r.art);
+        const forms = ADJ_FORMS[r.adjKey];
+        const valid = (need==="ms"&&choice===forms.ms)||(need==="fs"&&choice===forms.fs)||(need==="mp"&&choice===forms.mp)||(need==="fp"&&choice===forms.fp);
+        const s = norm(txt.value.replace(/[.!?]+$/,""));
+        const target = norm(`${r.art} ${r.sport} es ${choice}`);
+        if(choice && valid && s===target) correct++;
+      });
+      return {total, correct};
+    }
+    function getBScore(){
+      let total=B_ITEMS.length, correct=0;
+      B_ITEMS.forEach(it=>{
+        const sel = document.getElementById(`${it.id}-sel`);
+        if(sel && sel.value!==""){ if(Number(sel.value)===it.correct) correct++; }
+      });
+      return {total, correct};
+    }
+    function updateScore(){
+      const a=getAScore(); const b=getBScore();
+      document.getElementById('score').textContent = `Puntuación: ${a.correct + b.correct} / ${a.total + b.total}`;
+    }
+
+    // Controles
+    document.getElementById('revisar').addEventListener('click', updateScore);
+    document.getElementById('reiniciar').addEventListener('click', ()=>{
+      document.querySelectorAll('select').forEach(s=>s.value="");
+      document.querySelectorAll('input').forEach(i=>i.value="");
+      document.querySelectorAll('.feedback').forEach(f=>{ f.textContent=""; f.className="feedback"; });
+      updateScore(); window.scrollTo({top:0, behavior:'smooth'});
+    });
+    document.getElementById('mostrar').addEventListener('click', ()=>{
+      // Parte A: seleccionar la forma correcta según artículo
+      A_ROWS.forEach(r=>{
+        const sel = document.getElementById(`${r.id}-sel`);
+        const need = expectedAgreement(r.art);
+        const f = ADJ_FORMS[r.adjKey];
+        const value = need==="ms"?f.ms : need==="fs"?f.fs : need==="mp"?f.mp : f.fp;
+        sel.value = value;
+        document.getElementById(`${r.id}-txt`).value = `${r.art} ${r.sport} es ${value}`.replace(/[.!?]+$/,"");
+        const fb = document.getElementById(`${r.id}-fb`);
+        fb.textContent = "¡Correcto!"; fb.className="feedback ok";
+      });
+      // Parte B: seleccionar la respuesta correcta
+      B_ITEMS.forEach(it=>{
+        const sel = document.getElementById(`${it.id}-sel`);
+        sel.value = String(it.correct);
+        const fb = document.getElementById(`${it.id}-fb`);
+        fb.textContent = "Correct."; fb.className="feedback ok";
+      });
+      updateScore(); window.scrollTo({top:0, behavior:'smooth'});
+    });
+
+    // Render
+    function renderAll(){ renderA(); renderB(); updateScore(); }
+    if(document.readyState==="loading"){ document.addEventListener('DOMContentLoaded', renderAll); } else { renderAll(); }
+  </script>
+</body>
+</html>
